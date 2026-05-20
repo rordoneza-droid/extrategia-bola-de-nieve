@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Mentor Financiero — Bola de Nieve</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<style>
+  :root {
+    --bg: #0f172a;
+    --bg-2: #1e293b;
+    --bg-3: #334155;
+    --card: #1e293b;
+    --card-hover: #283548;
+    --text: #f1f5f9;
+    --text-dim: #94a3b8;
+    --text-muted: #64748b;
+    --primary: #10b981;
+    --primary-dark: #059669;
+    --accent: #3b82f6;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --border: #334155;
+    --shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    max-width: 900px;
+    margin: 0 auto;
+    padding-bottom: 80px;
+  }
+
+  /* HEADER */
+  header.top {
+    background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+    padding: 18px 16px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  }
+  header.top h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  header.top .subtitle {
+    font-size: 12px;
+    color: rgba(255,255,255,0.75);
+    margin-top: 2px;
+  }
+  header.top .salud-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 8px;
+    background: rgba(0,0,0,0.25);
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.yellow { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  .dot.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+  /* MAIN */
+  main {
+    padding: 16px;
+    flex: 1;
+  }
+
+  .view { display: none; }
+  .view.active { display: block; animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+  }
+  .card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-row:last-child { border-bottom: none; }
+  .card-row .label { font-size: 14px; color: var(--text-dim); }
+  .card-row .value { font-size: 15px; font-weight: 600; }
+  .card-row .value.green { color: var(--green); }
+  .card-row .value.yellow { color: var(--yellow); }
+  .card-row .value.red { color: var(--red); }
+
+  /* STATS GRID */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .stat {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px;
+    border: 1px solid var(--border);
+  }
+  .stat .stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .stat .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .stat .stat-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* INPUTS */
+  .field {
+    margin-bottom: 12px;
+  }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  input, select, textarea {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--bg-3);
+  }
+  input[type="number"] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.15s, background 0.15s;
+    font-family: inherit;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+  }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-secondary {
+    background: var(--bg-3);
+    color: var(--text);
+  }
+  .btn-secondary:hover { background: var(--card-hover); }
+  .btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+  .btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+  .btn-full { width: 100%; }
+  .btn-small { padding: 6px 12px; font-size: 12px; }
+
+  /* LISTS */
+  .item-list { list-style: none; }
+  .item {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .item .item-info { flex: 1; min-width: 0; }
+  .item .item-name { font-weight: 600; font-size: 14px; }
+  .item .item-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .item .item-amount { font-weight: 700; font-size: 16px; white-space: nowrap; }
+  .item .item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    font-size: 16px;
+  }
+  .icon-btn:hover { background: var(--bg-3); color: var(--text); }
+
+  /* PROGRESS BAR */
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-2);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #34d399);
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+  .progress-fill.yellow { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .progress-fill.red { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+  /* MENTOR ADVICE */
+  .advice {
+    padding: 14px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    border-left: 4px solid;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .advice .ico { font-size: 20px; flex-shrink: 0; }
+  .advice .msg { flex: 1; }
+  .advice .msg strong { display: block; margin-bottom: 4px; font-size: 14px; }
+  .advice .msg span { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+  .advice.green { background: rgba(16, 185, 129, 0.08); border-color: var(--green); }
+  .advice.yellow { background: rgba(245, 158, 11, 0.08); border-color: var(--yellow); }
+  .advice.red { background: rgba(239, 68, 68, 0.08); border-color: var(--red); }
+  .advice.info { background: rgba(59, 130, 246, 0.08); border-color: var(--accent); }
+
+  /* BADGES */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge.priority { background: rgba(239, 68, 68, 0.18); color: var(--red); }
+  .badge.next { background: rgba(245, 158, 11, 0.18); color: var(--yellow); }
+  .badge.queue { background: rgba(100, 116, 139, 0.18); color: var(--text-dim); }
+
+  /* TAB NAV (bottom) */
+  nav.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-start;
+    padding: 6px 4px max(6px, env(safe-area-inset-bottom));
+    z-index: 100;
+    max-width: 900px;
+    margin: 0 auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  nav.bottom-nav::-webkit-scrollbar { display: none; }
+  nav.bottom-nav button {
+    flex: 1 0 auto;
+    min-width: 62px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 8px 4px;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-family: inherit;
+    transition: color 0.15s;
+  }
+  nav.bottom-nav button .nav-ico {
+    font-size: 20px;
+    line-height: 1;
+  }
+  nav.bottom-nav button.active {
+    color: var(--primary);
+  }
+  nav.bottom-nav button:hover { color: var(--text); }
+  nav.bottom-nav button.active:hover { color: var(--primary); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 200;
+    padding: 0;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--card);
+    border-radius: 16px 16px 0 0;
+    width: 100%;
+    max-width: 600px;
+    padding: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal .close {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .modal-actions .btn { flex: 1; }
+
+  /* EMPTY STATE */
+  .empty {
+    text-align: center;
+    padding: 30px 16px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .empty .ico { font-size: 40px; margin-bottom: 8px; opacity: 0.4; }
+
+  /* HINT */
+  .hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  /* SEMÁFORO PANEL */
+  .traffic-light {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+  .traffic-light .big-dot {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .traffic-light .big-dot.green { background: var(--green); box-shadow: 0 0 24px rgba(16, 185, 129, 0.5); }
+  .traffic-light .big-dot.yellow { background: var(--yellow); box-shadow: 0 0 24px rgba(245, 158, 11, 0.5); }
+  .traffic-light .big-dot.red { background: var(--red); box-shadow: 0 0 24px rgba(239, 68, 68, 0.5); }
+  .traffic-light .info h3 { font-size: 16px; margin-bottom: 4px; color: var(--text); text-transform: none; letter-spacing: normal; }
+  .traffic-light .info p { font-size: 13px; color: var(--text-dim); }
+
+  /* Tabla compacta */
+  .compact-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 8px 0;
+    font-size: 13px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .compact-row:last-child { border-bottom: none; }
+  .compact-row .lbl { color: var(--text-dim); }
+  .compact-row .val { font-weight: 600; }
+
+  /* Action FAB */
+  .fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 14px;
+    background: var(--primary);
+    color: white;
+    border-radius: 12px;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    width: 100%;
+    margin-bottom: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .fab:active { transform: scale(0.98); }
+
+  /* Welcome wizard */
+  .wizard-step {
+    display: none;
+  }
+  .wizard-step.active { display: block; }
+
+  /* Responsive */
+  @media (min-width: 600px) {
+    .stats-grid { grid-template-columns: repeat(4, 1fr); }
+    .modal { border-radius: 16px; max-width: 500px; margin-bottom: 40px; }
+    .modal-overlay { align-items: center; padding: 20px; }
+  }
+
+  /* Tooltip-style */
+  details {
+    background: var(--bg-2);
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 8px;
+    font-size: 12px;
+  }
+  details summary {
+    cursor: pointer;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  details p { margin-top: 8px; color: var(--text-dim); line-height: 1.5; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-3);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 300;
+    opacity: 0;
+    transition: opacity 0.2s;
+    box-shadow: var(--shadow);
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* Section header */
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .section-header h2 {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  /* QUINCENAS */
+  .quincenas-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  @media (min-width: 700px) {
+    .quincenas-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .quincena-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .quincena-card.q1::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  }
+  .quincena-card.q2::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #a855f7, #c084fc);
+  }
+  .q-header {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .q-title {
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .q-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    color: white;
+  }
+  .quincena-card.q1 .q-num { background: #3b82f6; }
+  .quincena-card.q2 .q-num { background: #a855f7; }
+  .q-subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    margin-left: 36px;
+  }
+  .q-section {
+    margin-bottom: 12px;
+  }
+  .q-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .q-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 13px;
+  }
+  .q-line .lbl { color: var(--text-dim); }
+  .q-line .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .q-flujo {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+  }
+  .q-flujo-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+  }
+  .q-flujo-val {
+    font-size: 22px;
+    font-weight: 800;
+    margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .q-flujo-val.green { color: var(--green); }
+  .q-flujo-val.yellow { color: var(--yellow); }
+  .q-flujo-val.red { color: var(--red); }
+  .q-plan {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+  }
+  .q-plan-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 12px;
+  }
+  .q-plan-item .lbl { color: var(--text-dim); }
+  .q-plan-item .val { font-weight: 600; }
+
+  /* Category pills */
+  .cat-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .cat-pill {
+    padding: 4px 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .cat-pill.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>💰 Mentor Financiero</h1>
+  <div class="subtitle">Tu guía para salir de deudas — Estrategia híbrida</div>
+  <div id="saludGeneral" class="salud-pill"><span class="dot green"></span> <span id="saludTexto">Cargando…</span></div>
+</header>
+
+<main>
+  <!-- DASHBOARD -->
+  <section id="view-dashboard" class="view active">
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-label">Ingresos / mes</div>
+        <div class="stat-value" id="statIngresos">$0</div>
+        <div class="stat-sub" id="statIngresosSub">Sin registrar</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Gastos / mes</div>
+        <div class="stat-value" id="statGastos">$0</div>
+        <div class="stat-sub" id="statGastosSub">Fijos + variables</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Deuda total</div>
+        <div class="stat-value" id="statDeudas">$0</div>
+        <div class="stat-sub" id="statDeudasSub">Pendiente</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Flujo libre</div>
+        <div class="stat-value" id="statFlujo">$0</div>
+        <div class="stat-sub" id="statFlujoSub">Para deuda/ahorro</div>
+      </div>
+    </div>
+
+    <div id="trafficLightContainer"></div>
+
+    <div class="card">
+      <h2>🎯 Próxima deuda a atacar</h2>
+      <div id="proximaDeuda"></div>
+    </div>
+
+    <div class="card">
+      <h2>🛡️ Fondo de emergencia</h2>
+      <div id="fondoEmergenciaResumen"></div>
+    </div>
+
+    <div class="card">
+      <h2>📋 Plan del mes (sugerido)</h2>
+      <p class="hint" style="margin-bottom: 10px;">Tu mentor sugiere — tú decides. Estos son los movimientos recomendados este mes con tu flujo libre actual.</p>
+      <div id="planMes"></div>
+    </div>
+  </section>
+
+  <!-- QUINCENAS -->
+  <section id="view-quincenas" class="view">
+    <div class="section-header">
+      <h2>📅 Plan Quincenal</h2>
+    </div>
+    <p class="hint" style="margin-bottom: 12px;">Asigna día de cobro/pago a cada movimiento. La app divide automáticamente: Q1 (días 1-15) y Q2 (días 16-31). Los movimientos sin día asignado se reparten como mensual.</p>
+
+    <div class="quincenas-grid">
+      <div class="quincena-card q1">
+        <div class="q-header">
+          <div class="q-title"><span class="q-num">Q1</span> Primera quincena</div>
+          <div class="q-subtitle">Días 1 al 15</div>
+        </div>
+        <div id="resumenQ1"></div>
+      </div>
+
+      <div class="quincena-card q2">
+        <div class="q-header">
+          <div class="q-title"><span class="q-num">Q2</span> Segunda quincena</div>
+          <div class="q-subtitle">Días 16 al 31</div>
+        </div>
+        <div id="resumenQ2"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>💡 Cómo usarlo</h2>
+      <ol style="padding-left: 18px; font-size: 13px; color: var(--text-dim); line-height: 1.6;">
+        <li>Ve a <strong>Ingresos</strong> y a cada ingreso ponle el día que lo recibes (ej: sueldo quincenal el día 15 y el día 30).</li>
+        <li>En <strong>Gastos fijos</strong>, marca el día que pagas cada uno (renta día 5, internet día 10, etc.).</li>
+        <li>En <strong>Deudas</strong>, pon el día de corte/pago de cada una.</li>
+        <li>Vuelve acá y verás cuánto te queda libre en cada quincena.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>⚠️ Sin día asignado</h2>
+      <p class="hint">Los siguientes movimientos no tienen día de mes asignado y se reparten como "mensual". Asígnales día para verlos en su quincena correspondiente.</p>
+      <div id="sinDia"></div>
+    </div>
+  </section>
+
+  <!-- INGRESOS -->
+  <section id="view-ingresos" class="view">
+    <div class="section-header">
+      <h2>💵 Ingresos</h2>
+    </div>
+    <button class="fab" onclick="abrirModalIngreso()">+ Agregar ingreso</button>
+    <p class="hint" style="margin-bottom: 12px;">Registra tu salario y cualquier ingreso extra recurrente. Los ingresos variables (freelance, ventas) regístralos cuando los recibas.</p>
+    <ul id="listaIngresos" class="item-list"></ul>
+    <div class="card" style="margin-top: 16px;">
+      <h3>Total mensual estimado</h3>
+      <div class="stat-value" id="totalIngresos">$0</div>
+    </div>
+  </section>
+
+  <!-- GASTOS -->
+  <section id="view-gastos" class="view">
+    <div class="section-header">
+      <h2>💸 Gastos</h2>
+    </div>
+
+    <div class="card">
+      <h2>📌 Gastos Fijos</h2>
+      <p class="hint" style="margin-bottom: 10px;">Renta, servicios, suscripciones, planes — lo que pagas todos los meses.</p>
+      <button class="btn btn-primary btn-small" onclick="abrirModalGasto('fijo')">+ Agregar fijo</button>
+      <ul id="listaGastosFijos" class="item-list" style="margin-top: 10px;"></ul>
+      <div class="card-row" style="margin-top: 8px;">
+        <span class="label">Total fijos</span>
+        <span class="value" id="totalFijos">$0</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🌀 Gastos Variables (presupuesto mensual)</h2>
+      <p class="hint" style="margin-bottom: 10px;">Comida, transporte, ocio. Define un presupuesto mensual por categoría.</p>
+      <button class="btn btn-primary btn-small" onclick="abrirModalGasto('variable')">+ Agregar variable</button>
+      <ul id="listaGastosVariables" class="item-list" style="margin-top: 10px;"></ul>
+      <div class="card-row" style="margin-top: 8px;">
+        <span class="label">Total variables</span>
+        <span class="value" id="totalVariables">$0</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEUDAS -->
+  <section id="view-deudas" class="view">
+    <div class="section-header">
+      <h2>🔗 Mis Deudas</h2>
+    </div>
+    <button class="fab" onclick="abrirModalDeuda()">+ Agregar deuda</button>
+    <p class="hint" style="margin-bottom: 12px;">Registra cada deuda con su tasa de interés anual y pago mínimo. El mentor las ordenará con estrategia híbrida (tasas >25% primero, luego de menor a mayor monto).</p>
+    <ul id="listaDeudas" class="item-list"></ul>
+
+    <div class="card" style="margin-top: 12px;">
+      <h3>Resumen total</h3>
+      <div class="card-row">
+        <span class="label">Total adeudado</span>
+        <span class="value" id="resumenDeudaTotal">$0</span>
+      </div>
+      <div class="card-row">
+        <span class="label">Pagos mínimos / mes</span>
+        <span class="value" id="resumenMinimos">$0</span>
+      </div>
+      <div class="card-row">
+        <span class="label">Tasa promedio anual</span>
+        <span class="value" id="resumenTasa">0%</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>💳 Registrar pago a deuda</h2>
+      <p class="hint" style="margin-bottom: 10px;">Cuando hagas un pago, regístralo aquí para que el mentor actualice el progreso.</p>
+      <button class="btn btn-secondary btn-full" onclick="abrirModalPago()">Registrar pago</button>
+    </div>
+  </section>
+
+  <!-- MENTOR -->
+  <section id="view-mentor" class="view">
+    <div class="section-header">
+      <h2>🧠 Tu Mentor te aconseja</h2>
+    </div>
+    <p class="hint" style="margin-bottom: 12px;">Análisis honesto de tu situación. Yo sugiero — tú decides qué hacer.</p>
+
+    <div id="trafficLightMentor"></div>
+
+    <div class="card">
+      <h2>📊 Indicadores clave</h2>
+      <div id="indicadoresMentor"></div>
+    </div>
+
+    <div class="card">
+      <h2>💡 Consejos personalizados</h2>
+      <div id="consejosMentor"></div>
+    </div>
+
+    <div class="card">
+      <h2>🪜 Tu camino (orden ideal)</h2>
+      <div id="caminoFinanciero"></div>
+    </div>
+  </section>
+
+  <!-- SIMULADOR -->
+  <section id="view-simulador" class="view">
+    <div class="section-header">
+      <h2>🔮 Simulador</h2>
+    </div>
+    <p class="hint" style="margin-bottom: 12px;">¿Cuánto cambia tu vida si pagas $X extra por mes?</p>
+
+    <div class="card">
+      <h2>Pago extra mensual a deuda</h2>
+      <div class="field">
+        <label>Si pago este monto extra cada mes:</label>
+        <input type="number" id="pagoExtra" min="0" step="10" value="50" onchange="recalcularSimulador()" />
+      </div>
+      <div id="resultadoSimulador"></div>
+    </div>
+
+    <div class="card">
+      <h2>🎯 Fondo de emergencia</h2>
+      <div class="field">
+        <label>Meta del fondo (meses de gastos)</label>
+        <select id="metaFondo" onchange="recalcularFondo()">
+          <option value="1">1 mes (mínimo de arranque)</option>
+          <option value="3" selected>3 meses (recomendado mientras hay deudas)</option>
+          <option value="6">6 meses (libre de deudas)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Ya tengo ahorrado en el fondo ($)</label>
+        <input type="number" id="fondoActual" min="0" step="10" value="0" onchange="recalcularFondo()" />
+      </div>
+      <div id="resultadoFondo"></div>
+    </div>
+  </section>
+
+  <!-- AJUSTES -->
+  <section id="view-ajustes" class="view">
+    <div class="section-header">
+      <h2>⚙️ Ajustes</h2>
+    </div>
+
+    <div class="card">
+      <h2>📦 Backup y sincronización</h2>
+      <p class="hint" style="margin-bottom: 10px;">Tus datos se guardan SOLO en tu dispositivo. Para usar la app en celular Y PC, exporta el respaldo aquí, ábrelo en el otro dispositivo e impórtalo.</p>
+      <button class="btn btn-primary btn-full" onclick="exportarDatos()" style="margin-bottom: 8px;">⬇️ Exportar respaldo (JSON)</button>
+      <input type="file" id="importInput" accept=".json" style="display:none;" onchange="importarDatos(event)" />
+      <button class="btn btn-secondary btn-full" onclick="document.getElementById('importInput').click()">⬆️ Importar respaldo</button>
+    </div>
+
+    <div class="card">
+      <h2>🎯 Estrategia de pago</h2>
+      <select id="estrategia" onchange="cambiarEstrategia()">
+        <option value="hibrida">Híbrida (recomendada)</option>
+        <option value="bola">Bola de nieve pura</option>
+        <option value="avalancha">Avalancha pura</option>
+      </select>
+      <details>
+        <summary>¿En qué se diferencian?</summary>
+        <p><strong>Híbrida:</strong> Las deudas con tasa &gt;25% van primero (cuestan demasiado dinero), las demás de menor a mayor monto. La que recomiendo.</p>
+        <p><strong>Bola de nieve:</strong> De menor a mayor monto, ignorando el interés. Más motivante porque ves resultados rápido.</p>
+        <p><strong>Avalancha:</strong> De mayor a menor tasa de interés. Matemáticamente óptima, ahorra más dinero.</p>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>📚 Guía del semáforo</h2>
+      <details open>
+        <summary>¿Qué significa cada color?</summary>
+        <p><span class="dot green"></span> <strong>Verde — Sano:</strong> Tus finanzas están en orden, puedes acelerar el pago de deudas o aumentar ahorros.</p>
+        <p><span class="dot yellow"></span> <strong>Amarillo — Atención:</strong> Hay señales de alerta. Revisa los indicadores rojos del mentor y ajusta.</p>
+        <p><span class="dot red"></span> <strong>Rojo — Crítico:</strong> Estás cerca de un problema serio. Reduce gastos, no tomes más deudas y enfócate.</p>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>🗑️ Reiniciar</h2>
+      <p class="hint" style="margin-bottom: 10px;">Borra todos tus datos. Hazte un respaldo primero.</p>
+      <button class="btn btn-danger btn-full" onclick="reiniciarTodo()">Borrar todos mis datos</button>
+    </div>
+
+    <div class="card">
+      <p class="hint" style="text-align:center;">v1.1 — Hecho para Toño. Tus datos viven solo en este dispositivo. 💪</p>
+    </div>
+  </section>
+</main>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-view="dashboard" onclick="cambiarVista('dashboard')">
+    <span class="nav-ico">🏠</span><span>Inicio</span>
+  </button>
+  <button class="nav-btn" data-view="quincenas" onclick="cambiarVista('quincenas')">
+    <span class="nav-ico">📅</span><span>Quincena</span>
+  </button>
+  <button class="nav-btn" data-view="ingresos" onclick="cambiarVista('ingresos')">
+    <span class="nav-ico">💵</span><span>Ingresos</span>
+  </button>
+  <button class="nav-btn" data-view="gastos" onclick="cambiarVista('gastos')">
+    <span class="nav-ico">💸</span><span>Gastos</span>
+  </button>
+  <button class="nav-btn" data-view="deudas" onclick="cambiarVista('deudas')">
+    <span class="nav-ico">🔗</span><span>Deudas</span>
+  </button>
+  <button class="nav-btn" data-view="mentor" onclick="cambiarVista('mentor')">
+    <span class="nav-ico">🧠</span><span>Mentor</span>
+  </button>
+  <button class="nav-btn" data-view="simulador" onclick="cambiarVista('simulador')">
+    <span class="nav-ico">🔮</span><span>Simul.</span>
+  </button>
+  <button class="nav-btn" data-view="ajustes" onclick="cambiarVista('ajustes')">
+    <span class="nav-ico">⚙️</span><span>Ajustes</span>
+  </button>
+</nav>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modal">
+    <h2 id="modalTitulo">Nuevo</h2>
+    <div id="modalContenido"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+<script src="forms.js"></script>
+<script>
+  // Register service worker for offline
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+</script>
+</body>
+</html>
