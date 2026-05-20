@@ -40,6 +40,12 @@ const fmt = (n) =>
   });
 const pct = (n) => (n * 100).toFixed(1) + '%';
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+// Mes actual en formato "YYYY-MM" — sirve para resetear los checks de pagado cada mes
+const mesActual = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+};
+const estaPagado = (item) => item && item.pagadoEn === mesActual();
 
 function toast(msg) {
   const t = document.getElementById('toast');
@@ -81,14 +87,36 @@ function flujoLibre() {
 }
 
 // ====== ESTRATEGIA HÍBRIDA ======
+// Una deuda es "atacable" si permite abonos/pagos extra. Las de cuota fija (algunos
+// créditos bancarios) no — solo se paga la cuota, el extra se redirige a otras.
+function esAtacable(d) {
+  return d.permitePagoExtra !== false;
+}
+
 function ordenarDeudas() {
   const e = state.perfil.estrategia || 'hibrida';
   const deudas = [...state.deudas].filter((d) => Number(d.montoActual) > 0);
-  if (e === 'avalancha') return deudas.sort((a, b) => b.tasaAnual - a.tasaAnual);
-  if (e === 'bola') return deudas.sort((a, b) => a.montoActual - b.montoActual);
-  const altas = deudas.filter((d) => Number(d.tasaAnual) > 25).sort((a, b) => b.tasaAnual - a.tasaAnual);
-  const resto = deudas.filter((d) => Number(d.tasaAnual) <= 25).sort((a, b) => a.montoActual - b.montoActual);
-  return [...altas, ...resto];
+  const atacables = deudas.filter(esAtacable);
+  const fijas = deudas.filter((d) => !esAtacable(d));
+
+  let ordenadas;
+  if (e === 'avalancha') {
+    ordenadas = atacables.sort((a, b) => b.tasaAnual - a.tasaAnual);
+  } else if (e === 'bola') {
+    ordenadas = atacables.sort((a, b) => a.montoActual - b.montoActual);
+  } else {
+    const altas = atacables.filter((d) => Number(d.tasaAnual) > 25).sort((a, b) => b.tasaAnual - a.tasaAnual);
+    const resto = atacables.filter((d) => Number(d.tasaAnual) <= 25).sort((a, b) => a.montoActual - b.montoActual);
+    ordenadas = [...altas, ...resto];
+  }
+  // Las deudas de cuota fija van al final (no se atacan, solo se pagan)
+  const ordenadasFijas = fijas.sort((a, b) => a.montoActual - b.montoActual);
+  return [...ordenadas, ...ordenadasFijas];
+}
+
+// Solo las deudas que SÍ admiten pago extra, en orden de prioridad
+function deudasAtacables() {
+  return ordenarDeudas().filter(esAtacable);
 }
 
 // ====== SEMÁFORO MENTOR ======
@@ -310,15 +338,13 @@ function simularPagoTotal(extraMensual) {
       const pago = Math.min(d.pagoMinimo || 0, d.montoActual);
       d.montoActual -= pago;
     }
-    if (deudas.length > 0) {
-      const pago = Math.min(extraPool, deudas[0].montoActual);
-      deudas[0].montoActual -= pago;
-      extraPool -= pago;
-    }
-    let i = 1;
-    while (extraPool > 0 && i < deudas.length) {
-      const pago = Math.min(extraPool, deudas[i].montoActual);
-      deudas[i].montoActual -= pago;
+    // El pago extra SOLO se distribuye entre deudas atacables (en orden de prioridad).
+    // Las de cuota fija nunca reciben extra — solo su cuota mínima.
+    const atacables = deudas.filter(esAtacable);
+    let i = 0;
+    while (extraPool > 0.01 && i < atacables.length) {
+      const pago = Math.min(extraPool, atacables[i].montoActual);
+      atacables[i].montoActual -= pago;
       extraPool -= pago;
       i++;
     }
@@ -600,12 +626,23 @@ function renderDashboard(salud) {
     </div>
   `;
 
-  const ordenadas = ordenarDeudas();
+  const atacables = deudasAtacables();
+  const hayDeudas = state.deudas.some((d) => Number(d.montoActual) > 0);
   const proxEl = document.getElementById('proximaDeuda');
-  if (ordenadas.length === 0) {
+  if (!hayDeudas) {
     proxEl.innerHTML = '<div class="empty"><div class="ico">🎉</div>No tienes deudas registradas. ¡Eso o aún no las has añadido!</div>';
+  } else if (atacables.length === 0) {
+    proxEl.innerHTML = `
+      <div class="advice info">
+        <span class="ico">🔒</span>
+        <div class="msg">
+          <strong>Todas tus deudas son de cuota fija</strong>
+          <span>No admiten abonos extra, así que no hay una "deuda a atacar" — solo pagas sus cuotas cada mes. Usa tu flujo libre para el fondo de emergencia y ahorro.</span>
+        </div>
+      </div>
+    `;
   } else {
-    const p = ordenadas[0];
+    const p = atacables[0];
     proxEl.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div>
@@ -704,7 +741,7 @@ function renderPlanMes(libre) {
 
   const gastoMensual = totalGastos();
   const fondoFaltante = Math.max(0, state.fondo.meta * gastoMensual - state.fondo.actual);
-  const ordenadas = ordenarDeudas();
+  const ordenadas = deudasAtacables();
   let aDeuda, aFondo, aOcio;
   const fondoBase = Math.min(1000, state.fondo.meta * gastoMensual);
   if (state.fondo.actual < fondoBase && fondoFaltante > 0) {
@@ -772,6 +809,7 @@ function renderIngresos() {
         </div>
         <div class="item-amount">${fmt(i.monto)}</div>
         <div class="item-actions">
+          <button class="icon-btn" onclick="abrirModalIngreso('${i.id}')">✏️</button>
           <button class="icon-btn" onclick="eliminarIngreso('${i.id}')">🗑️</button>
         </div>
       </li>
@@ -782,39 +820,40 @@ function renderIngresos() {
   document.getElementById('totalIngresos').textContent = fmt(totalIngresosMensual());
 }
 
-function abrirModalIngreso() {
+function abrirModalIngreso(id) {
+  const ing = id ? state.ingresos.find((x) => x.id === id) : null;
   abrirModal(
-    'Agregar ingreso',
+    ing ? 'Editar ingreso' : 'Agregar ingreso',
     `
     <div class="field">
       <label>Nombre del ingreso</label>
-      <input id="ingNombre" placeholder="Ej: Salario, Freelance" />
+      <input id="ingNombre" placeholder="Ej: Salario, Freelance" value="${ing ? escapar(ing.nombre) : ''}" />
     </div>
     <div class="field">
       <label>Monto (USD)</label>
-      <input id="ingMonto" type="number" min="0" step="1" placeholder="0" />
+      <input id="ingMonto" type="number" min="0" step="1" placeholder="0" value="${ing ? ing.monto : ''}" />
       <p class="hint">Si te pagan en 2 partes, crea 2 ingresos (uno por quincena).</p>
     </div>
     <div class="field">
       <label>Día del mes que lo recibes (1-31, opcional)</label>
-      <input id="ingDia" type="number" min="1" max="31" placeholder="Ej: 15 o 30" />
+      <input id="ingDia" type="number" min="1" max="31" placeholder="Ej: 15 o 30" value="${ing && ing.diaMes ? ing.diaMes : ''}" />
       <p class="hint">Para que aparezca en su quincena. Déjalo vacío si es variable / sin fecha fija.</p>
     </div>
     <div class="field">
       <label>Tipo</label>
       <select id="ingTipo">
-        <option value="fijo">Fijo (recurrente cada mes)</option>
-        <option value="variable">Variable (ingreso ocasional)</option>
+        <option value="fijo"${ing && ing.tipo === 'fijo' ? ' selected' : ''}>Fijo (recurrente cada mes)</option>
+        <option value="variable"${ing && ing.tipo === 'variable' ? ' selected' : ''}>Variable (ingreso ocasional)</option>
       </select>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarIngreso()">Guardar</button>
+      <button class="btn btn-primary" onclick="guardarIngreso('${id || ''}')">Guardar</button>
     </div>
   `
   );
 }
-function guardarIngreso() {
+function guardarIngreso(id) {
   const nombre = document.getElementById('ingNombre').value.trim();
   const monto = Number(document.getElementById('ingMonto').value);
   const tipo = document.getElementById('ingTipo').value;
@@ -824,10 +863,15 @@ function guardarIngreso() {
     toast('Completa nombre y monto');
     return;
   }
-  state.ingresos.push({ id: uid(), nombre, monto, tipo, diaMes });
+  if (id) {
+    const ing = state.ingresos.find((x) => x.id === id);
+    Object.assign(ing, { nombre, monto, tipo, diaMes });
+  } else {
+    state.ingresos.push({ id: uid(), nombre, monto, tipo, diaMes });
+  }
   guardar();
   cerrarModal();
-  toast('Ingreso agregado');
+  toast(id ? 'Ingreso actualizado' : 'Ingreso agregado');
   render();
 }
 function eliminarIngreso(id) {
@@ -847,22 +891,27 @@ function renderGastos() {
 
   elF.innerHTML = fijos.length
     ? fijos
-        .map(
-          (g) => `
-    <li class="item">
+        .map((g) => {
+          const pagado = estaPagado(g);
+          return `
+    <li class="item ${pagado ? 'item-pagado' : ''}">
+      <button class="check-btn ${pagado ? 'checked' : ''}" onclick="toggleGastoPagado('${g.id}')" title="${
+        pagado ? 'Pagado este mes — clic para desmarcar' : 'Marcar como pagado este mes'
+      }">${pagado ? '✓' : ''}</button>
       <div class="item-info">
         <div class="item-name">${escapar(g.nombre)}</div>
         <div class="item-meta">${escapar(g.categoria || 'Otro')}${
             g.diaMes ? ` • Día ${g.diaMes} (${g.diaMes <= 15 ? 'Q1' : 'Q2'})` : ' • Sin día'
-          }</div>
+          }${pagado ? ' • <span style="color:var(--green)">✅ Pagado</span>' : ''}</div>
       </div>
       <div class="item-amount">${fmt(g.monto)}</div>
       <div class="item-actions">
+        <button class="icon-btn" onclick="abrirModalGasto('fijo','${g.id}')">✏️</button>
         <button class="icon-btn" onclick="eliminarGasto('fijo','${g.id}')">🗑️</button>
       </div>
     </li>
-  `
-        )
+  `;
+        })
         .join('')
     : '<div class="empty">Sin gastos fijos</div>';
 
@@ -879,6 +928,7 @@ function renderGastos() {
       </div>
       <div class="item-amount">${fmt(g.monto)}</div>
       <div class="item-actions">
+        <button class="icon-btn" onclick="abrirModalGasto('variable','${g.id}')">✏️</button>
         <button class="icon-btn" onclick="eliminarGasto('variable','${g.id}')">🗑️</button>
       </div>
     </li>
@@ -889,55 +939,87 @@ function renderGastos() {
 
   document.getElementById('totalFijos').textContent = fmt(totalGastosFijos());
   document.getElementById('totalVariables').textContent = fmt(totalGastosVariables());
+
+  // Resumen de progreso de pagos del mes (gastos fijos)
+  const elProg = document.getElementById('progresoFijos');
+  if (elProg) {
+    const pagadosCount = fijos.filter(estaPagado).length;
+    const montoPagado = fijos.filter(estaPagado).reduce((s, g) => s + Number(g.monto || 0), 0);
+    if (fijos.length === 0) {
+      elProg.innerHTML = '';
+    } else {
+      const pctPagado = (pagadosCount / fijos.length) * 100;
+      elProg.innerHTML = `
+        <div class="card-row">
+          <span class="label">Pagados este mes</span>
+          <span class="value ${pagadosCount === fijos.length ? 'green' : ''}">${pagadosCount} de ${fijos.length} — ${fmt(montoPagado)}</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill ${pctPagado >= 100 ? '' : pctPagado >= 50 ? 'yellow' : 'red'}" style="width:${pctPagado}%"></div></div>
+        <p class="hint" style="margin-top:6px;">${
+          pagadosCount === fijos.length
+            ? '✅ ¡Todos tus gastos fijos del mes están pagados!'
+            : `Te faltan ${fmt(totalGastosFijos() - montoPagado)} en gastos fijos por pagar este mes.`
+        }</p>
+      `;
+    }
+  }
 }
 
 const CATEGORIAS_FIJOS = ['Vivienda', 'Servicios', 'Internet/Telefonía', 'Transporte', 'Suscripciones', 'Educación', 'Salud', 'Seguros', 'Otro'];
 const CATEGORIAS_VARIABLES = ['Comida', 'Transporte', 'Ocio', 'Ropa', 'Salud', 'Regalos', 'Otro'];
 
-function abrirModalGasto(tipo) {
+function abrirModalGasto(tipo, id) {
+  // Si viene id, buscamos el gasto (puede estar en fijos o variables)
+  let g = null;
+  if (id) {
+    g = state.gastosFijos.find((x) => x.id === id) || state.gastosVariables.find((x) => x.id === id);
+    if (g) tipo = state.gastosFijos.includes(g) ? 'fijo' : 'variable';
+  }
   const cats = tipo === 'fijo' ? CATEGORIAS_FIJOS : CATEGORIAS_VARIABLES;
   const campoFecha = tipo === 'fijo'
     ? `
     <div class="field">
       <label>Día del mes que pagas (1-31, opcional)</label>
-      <input id="gDia" type="number" min="1" max="31" placeholder="Ej: 5 (a inicio) o 25 (a fin)" />
+      <input id="gDia" type="number" min="1" max="31" placeholder="Ej: 5 (a inicio) o 25 (a fin)" value="${g && g.diaMes ? g.diaMes : ''}" />
       <p class="hint">Para que aparezca en su quincena. Déjalo vacío si no tiene fecha fija.</p>
     </div>`
     : `
     <div class="field">
       <label>Asignación quincenal</label>
       <select id="gAsig">
-        <option value="mes">Reparto mensual (se divide en mitades)</option>
-        <option value="q1">Solo primera quincena (días 1-15)</option>
-        <option value="q2">Solo segunda quincena (días 16-31)</option>
+        <option value="mes"${g && (!g.asignacion || g.asignacion === 'mes') ? ' selected' : ''}>Reparto mensual (se divide en mitades)</option>
+        <option value="q1"${g && g.asignacion === 'q1' ? ' selected' : ''}>Solo primera quincena (días 1-15)</option>
+        <option value="q2"${g && g.asignacion === 'q2' ? ' selected' : ''}>Solo segunda quincena (días 16-31)</option>
       </select>
       <p class="hint">Los gastos variables suelen ser parejos en el mes. Si uno se concentra en una quincena, selecciónalo aquí.</p>
     </div>`;
 
   abrirModal(
-    `Agregar gasto ${tipo}`,
+    g ? `Editar gasto ${tipo}` : `Agregar gasto ${tipo}`,
     `
     <div class="field">
       <label>Nombre / descripción</label>
-      <input id="gNombre" placeholder="${tipo === 'fijo' ? 'Ej: Renta, Internet' : 'Ej: Comida, Gasolina'}" />
+      <input id="gNombre" placeholder="${tipo === 'fijo' ? 'Ej: Renta, Internet' : 'Ej: Comida, Gasolina'}" value="${g ? escapar(g.nombre) : ''}" />
     </div>
     <div class="field">
       <label>Monto mensual (USD)</label>
-      <input id="gMonto" type="number" min="0" step="1" placeholder="0" />
+      <input id="gMonto" type="number" min="0" step="1" placeholder="0" value="${g ? g.monto : ''}" />
     </div>
     <div class="field">
       <label>Categoría</label>
-      <select id="gCategoria">${cats.map((c) => `<option value="${c}">${c}</option>`).join('')}</select>
+      <select id="gCategoria">${cats
+        .map((c) => `<option value="${c}"${g && g.categoria === c ? ' selected' : ''}>${c}</option>`)
+        .join('')}</select>
     </div>
     ${campoFecha}
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarGasto('${tipo}')">Guardar</button>
+      <button class="btn btn-primary" onclick="guardarGasto('${tipo}','${id || ''}')">Guardar</button>
     </div>
   `
   );
 }
-function guardarGasto(tipo) {
+function guardarGasto(tipo, id) {
   const nombre = document.getElementById('gNombre').value.trim();
   const monto = Number(document.getElementById('gMonto').value);
   const categoria = document.getElementById('gCategoria').value;
@@ -945,19 +1027,34 @@ function guardarGasto(tipo) {
     toast('Completa nombre y monto');
     return;
   }
-  const item = { id: uid(), nombre, monto, categoria };
+  const datos = { nombre, monto, categoria };
   if (tipo === 'fijo') {
     const diaRaw = document.getElementById('gDia').value;
-    item.diaMes = diaRaw ? Math.min(31, Math.max(1, Number(diaRaw))) : null;
-    state.gastosFijos.push(item);
+    datos.diaMes = diaRaw ? Math.min(31, Math.max(1, Number(diaRaw))) : null;
   } else {
-    item.asignacion = document.getElementById('gAsig').value || 'mes';
-    state.gastosVariables.push(item);
+    datos.asignacion = document.getElementById('gAsig').value || 'mes';
+  }
+  if (id) {
+    const g = state.gastosFijos.find((x) => x.id === id) || state.gastosVariables.find((x) => x.id === id);
+    if (g) Object.assign(g, datos);
+  } else {
+    const item = Object.assign({ id: uid() }, datos);
+    if (tipo === 'fijo') state.gastosFijos.push(item);
+    else state.gastosVariables.push(item);
   }
   guardar();
   cerrarModal();
-  toast('Gasto agregado');
+  toast(id ? 'Gasto actualizado' : 'Gasto agregado');
   render();
+}
+// Marca / desmarca un gasto fijo como pagado este mes
+function toggleGastoPagado(id) {
+  const g = state.gastosFijos.find((x) => x.id === id);
+  if (!g) return;
+  g.pagadoEn = estaPagado(g) ? null : mesActual();
+  guardar();
+  render();
+  toast(estaPagado(g) ? 'Marcado como pagado ✅' : 'Desmarcado');
 }
 function eliminarGasto(tipo, id) {
   if (!confirm('¿Eliminar este gasto?')) return;
@@ -971,28 +1068,39 @@ function eliminarGasto(tipo, id) {
 // ====== DEUDAS ======
 function renderDeudas() {
   const ordenadas = ordenarDeudas();
+  const atacables = ordenadas.filter(esAtacable);
   const lista = document.getElementById('listaDeudas');
   if (state.deudas.length === 0) {
     lista.innerHTML = '<div class="empty"><div class="ico">🎉</div>No tienes deudas registradas.</div>';
   } else {
     lista.innerHTML = ordenadas
-      .map((d, idx) => {
+      .map((d) => {
         const progreso = d.montoOriginal > 0 ? ((d.montoOriginal - d.montoActual) / d.montoOriginal) * 100 : 0;
-        const badge =
-          idx === 0
-            ? '<span class="badge priority">Prioridad 1</span>'
-            : idx === 1
-            ? '<span class="badge next">Siguiente</span>'
-            : '<span class="badge queue">En fila</span>';
+        const esFija = !esAtacable(d);
+        const idxAtaque = atacables.indexOf(d);
+        let badge;
+        if (esFija) {
+          badge = '<span class="badge fija">🔒 Cuota fija</span>';
+        } else if (idxAtaque === 0) {
+          badge = '<span class="badge priority">Prioridad 1</span>';
+        } else if (idxAtaque === 1) {
+          badge = '<span class="badge next">Siguiente</span>';
+        } else {
+          badge = '<span class="badge queue">En fila</span>';
+        }
         const altaTasa = Number(d.tasaAnual) > 25 ? ' 🔥' : '';
+        const pagado = estaPagado(d);
         return `
-        <li class="item" style="flex-direction:column;align-items:stretch;">
-          <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+        <li class="item ${pagado ? 'item-pagado' : ''}" style="flex-direction:column;align-items:stretch;">
+          <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:10px;">
+            <button class="check-btn ${pagado ? 'checked' : ''}" onclick="toggleDeudaPagada('${d.id}')" title="${
+          pagado ? 'Cuota de este mes pagada — clic para desmarcar' : 'Marcar cuota de este mes como pagada'
+        }">${pagado ? '✓' : ''}</button>
             <div class="item-info">
               <div class="item-name">${escapar(d.nombre)}${altaTasa}</div>
               <div class="item-meta">Tasa ${Number(d.tasaAnual).toFixed(1)}% • Mín ${fmt(d.pagoMinimo)}${
-                d.diaMes ? ` • Día ${d.diaMes} (${d.diaMes <= 15 ? 'Q1' : 'Q2'})` : ''
-              }</div>
+          d.diaMes ? ` • Día ${d.diaMes} (${d.diaMes <= 15 ? 'Q1' : 'Q2'})` : ''
+        }${pagado ? ' • <span style="color:var(--green)">✅ Cuota pagada</span>' : ''}</div>
             </div>
             <div style="text-align:right;">
               <div class="item-amount">${fmt(d.montoActual)}</div>
@@ -1015,6 +1123,15 @@ function renderDeudas() {
   document.getElementById('resumenDeudaTotal').textContent = fmt(totalDeudas());
   document.getElementById('resumenMinimos').textContent = fmt(totalPagosMinimos());
   document.getElementById('resumenTasa').textContent = tasaPromedio().toFixed(1) + '%';
+}
+// Marca / desmarca la cuota mensual de una deuda como pagada
+function toggleDeudaPagada(id) {
+  const d = state.deudas.find((x) => x.id === id);
+  if (!d) return;
+  d.pagadoEn = estaPagado(d) ? null : mesActual();
+  guardar();
+  render();
+  toast(estaPagado(d) ? 'Cuota marcada como pagada ✅' : 'Desmarcado');
 }
 
 function abrirModalDeuda(deudaId) {
@@ -1041,8 +1158,16 @@ function abrirModalDeuda(deudaId) {
       <p class="hint">Si es de un amigo o familiar sin interés, pon 0.</p>
     </div>
     <div class="field">
-      <label>Pago mínimo mensual (USD)</label>
+      <label>Pago mínimo / cuota mensual (USD)</label>
       <input id="dMinimo" type="number" min="0" step="0.01" placeholder="0" value="${d ? d.pagoMinimo : ''}" />
+    </div>
+    <div class="field">
+      <label>¿Puedes abonar o pagar de más a esta deuda?</label>
+      <select id="dExtra">
+        <option value="si"${d && d.permitePagoExtra === false ? '' : ' selected'}>Sí — acepta pagos extra (tarjetas, préstamos informales)</option>
+        <option value="no"${d && d.permitePagoExtra === false ? ' selected' : ''}>No — cuota fija (algunos créditos bancarios)</option>
+      </select>
+      <p class="hint">Si es de cuota fija, el mentor NO le sugerirá pago extra: solo pagas la cuota y el dinero extra se reparte entre las deudas que sí lo permiten.</p>
     </div>
     <div class="field">
       <label>Día del mes que pagas (1-31, opcional)</label>
@@ -1062,6 +1187,7 @@ function guardarDeuda(id) {
   const montoOriginal = Number(document.getElementById('dMontoOriginal').value) || montoActual;
   const tasaAnual = Number(document.getElementById('dTasa').value) || 0;
   const pagoMinimo = Number(document.getElementById('dMinimo').value) || 0;
+  const permitePagoExtra = document.getElementById('dExtra').value !== 'no';
   const diaRaw = document.getElementById('dDia').value;
   const diaMes = diaRaw ? Math.min(31, Math.max(1, Number(diaRaw))) : null;
 
@@ -1071,7 +1197,7 @@ function guardarDeuda(id) {
   }
   if (id) {
     const d = state.deudas.find((x) => x.id === id);
-    Object.assign(d, { nombre, montoActual, montoOriginal, tasaAnual, pagoMinimo, diaMes });
+    Object.assign(d, { nombre, montoActual, montoOriginal, tasaAnual, pagoMinimo, diaMes, permitePagoExtra });
   } else {
     state.deudas.push({
       id: uid(),
@@ -1081,6 +1207,7 @@ function guardarDeuda(id) {
       tasaAnual,
       pagoMinimo,
       diaMes,
+      permitePagoExtra,
       creada: Date.now(),
     });
   }

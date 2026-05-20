@@ -1,5 +1,5 @@
 /* Service Worker — Mentor Financiero PWA */
-const CACHE = 'mentor-financiero-v2';
+const CACHE = 'mentor-financiero-v3';
 const ASSETS = [
   './',
   './index.html',

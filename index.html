@@ -323,6 +323,34 @@
   .badge.priority { background: rgba(239, 68, 68, 0.18); color: var(--red); }
   .badge.next { background: rgba(245, 158, 11, 0.18); color: var(--yellow); }
   .badge.queue { background: rgba(100, 116, 139, 0.18); color: var(--text-dim); }
+  .badge.fija { background: rgba(59, 130, 246, 0.18); color: var(--accent); }
+
+  /* CHECK BUTTON (pagado este mes) */
+  .check-btn {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--bg-2);
+    color: white;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    padding: 0;
+    line-height: 1;
+  }
+  .check-btn:hover { border-color: var(--primary); }
+  .check-btn.checked {
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+  .item-pagado { opacity: 0.62; }
+  .item-pagado .item-name { text-decoration: line-through; }
 
   /* TAB NAV (bottom) */
   nav.bottom-nav {
@@ -811,13 +839,14 @@
 
     <div class="card">
       <h2>📌 Gastos Fijos</h2>
-      <p class="hint" style="margin-bottom: 10px;">Renta, servicios, suscripciones, planes — lo que pagas todos los meses.</p>
+      <p class="hint" style="margin-bottom: 10px;">Renta, servicios, suscripciones, planes — lo que pagas todos los meses. Toca el círculo ⬜ de cada uno para marcarlo como pagado este mes.</p>
       <button class="btn btn-primary btn-small" onclick="abrirModalGasto('fijo')">+ Agregar fijo</button>
       <ul id="listaGastosFijos" class="item-list" style="margin-top: 10px;"></ul>
       <div class="card-row" style="margin-top: 8px;">
         <span class="label">Total fijos</span>
         <span class="value" id="totalFijos">$0</span>
       </div>
+      <div id="progresoFijos" style="margin-top: 10px;"></div>
     </div>
 
     <div class="card">
