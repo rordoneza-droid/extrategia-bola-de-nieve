@@ -544,6 +544,70 @@
   }
   details p { margin-top: 8px; color: var(--text-dim); line-height: 1.5; }
 
+  /* LOGIN OVERLAY */
+  .login-overlay {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(160deg, #0f172a 0%, #064e3b 120%);
+    z-index: 500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow-y: auto;
+  }
+  .login-overlay.active { display: flex; }
+  .login-box {
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+  }
+  .login-logo {
+    font-size: 52px;
+    margin-bottom: 8px;
+  }
+  .login-box h1 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .login-sub {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 22px;
+    line-height: 1.5;
+  }
+  .login-box .field { text-align: left; }
+  .login-error {
+    color: var(--red);
+    font-size: 13px;
+    min-height: 18px;
+    margin-bottom: 10px;
+    text-align: left;
+  }
+  .login-toggle {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 16px;
+  }
+  .login-toggle a, .login-skip {
+    color: var(--primary);
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .login-toggle a:hover, .login-skip:hover { text-decoration: underline; }
+  .login-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 22px 0 16px;
+  }
+  .login-skip {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: inline-block;
+  }
+
   /* Toast */
   .toast {
     position: fixed;
@@ -728,6 +792,7 @@
   <h1>💰 Mentor Financiero</h1>
   <div class="subtitle">Tu guía para salir de deudas — Estrategia híbrida</div>
   <div id="saludGeneral" class="salud-pill"><span class="dot green"></span> <span id="saludTexto">Cargando…</span></div>
+  <span id="syncMini" title="Estado de sincronización" style="margin-left:6px;font-size:13px;"></span>
 </header>
 
 <main>
@@ -959,6 +1024,27 @@
     </div>
 
     <div class="card">
+      <h2>☁️ Cuenta y sincronización</h2>
+      <div id="estadoSync" style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;padding:10px;background:var(--bg-2);border-radius:10px;">
+        <span style="font-size:18px;">💾</span> <span style="color:var(--text-dim);font-weight:600;">Modo local (sin sincronización)</span>
+      </div>
+
+      <div id="cuentaInfo" style="display:none;">
+        <div class="card-row">
+          <span class="label">Sesión iniciada como</span>
+          <span class="value" id="cuentaEmail" style="font-size:13px;"></span>
+        </div>
+        <p class="hint" style="margin:8px 0 10px;">Tus datos se sincronizan automáticamente entre todos los dispositivos donde inicies sesión con este correo.</p>
+        <button class="btn btn-danger btn-full" onclick="cerrarSesion()">Cerrar sesión en este dispositivo</button>
+      </div>
+
+      <div id="cuentaSinSesion">
+        <p class="hint" style="margin-bottom:10px;">Para sincronizar tus datos entre el celular y la PC automáticamente, configura Firebase (ver la guía GUIA-FIREBASE) e inicia sesión.</p>
+        <button class="btn btn-primary btn-full" onclick="abrirLoginDesdeAjustes()">Iniciar sesión / Crear cuenta</button>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>📦 Backup y sincronización</h2>
       <p class="hint" style="margin-bottom: 10px;">Tus datos se guardan SOLO en tu dispositivo. Para usar la app en celular Y PC, exporta el respaldo aquí, ábrelo en el otro dispositivo e impórtalo.</p>
       <button class="btn btn-primary btn-full" onclick="exportarDatos()" style="margin-bottom: 8px;">⬇️ Exportar respaldo (JSON)</button>
@@ -993,12 +1079,12 @@
 
     <div class="card">
       <h2>🗑️ Reiniciar</h2>
-      <p class="hint" style="margin-bottom: 10px;">Borra todos tus datos. Hazte un respaldo primero.</p>
+      <p class="hint" style="margin-bottom: 10px;">Borra todos tus datos de este dispositivo. Hazte un respaldo primero.</p>
       <button class="btn btn-danger btn-full" onclick="reiniciarTodo()">Borrar todos mis datos</button>
     </div>
 
     <div class="card">
-      <p class="hint" style="text-align:center;">v1.1 — Hecho para Toño. Tus datos viven solo en este dispositivo. 💪</p>
+      <p class="hint" style="text-align:center;">v2.0 — Hecho para Toño. Sincronización con Firebase. 💪</p>
     </div>
   </section>
 </main>
@@ -1040,8 +1126,43 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- PANTALLA DE LOGIN (solo aparece si Firebase está configurado) -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">💰</div>
+    <h1 id="loginTitulo">Iniciar sesión</h1>
+    <p id="loginSubtitulo" class="login-sub">Entra con tu cuenta para ver tus datos sincronizados.</p>
+
+    <div class="field">
+      <label>Correo electrónico</label>
+      <input type="email" id="loginEmail" placeholder="tucorreo@ejemplo.com" autocomplete="email" />
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" placeholder="Mínimo 6 caracteres" autocomplete="current-password" />
+    </div>
+
+    <div id="loginError" class="login-error"></div>
+
+    <button class="btn btn-primary btn-full" id="loginBtn" onclick="enviarFormularioAuth()">Iniciar sesión</button>
+
+    <p class="login-toggle">
+      <span id="loginToggleTexto">¿Primera vez?</span>
+      <a id="loginToggleLink" onclick="alternarModoAuth()">Crea una cuenta</a>
+    </p>
+
+    <div class="login-divider"></div>
+    <a class="login-skip" onclick="usarSinCuenta()">Usar solo en este dispositivo (sin sincronizar)</a>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="app.js"></script>
 <script src="forms.js"></script>
+<script src="sync.js"></script>
 <script>
   // Register service worker for offline
   if ('serviceWorker' in navigator) {

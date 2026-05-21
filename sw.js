@@ -1,10 +1,12 @@
 /* Service Worker — Mentor Financiero PWA */
-const CACHE = 'mentor-financiero-v3';
+const CACHE = 'mentor-financiero-v4';
 const ASSETS = [
   './',
   './index.html',
   './app.js',
   './forms.js',
+  './sync.js',
+  './firebase-config.js',
   './manifest.json',
   './icon.svg',
   './icon-192.png',
@@ -29,6 +31,13 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+
+  const url = new URL(e.request.url);
+  // IMPORTANTE: solo manejamos recursos de la propia app.
+  // Las peticiones a Firebase (firestore, auth, gstatic) deben pasar
+  // directo a la red para que la sincronización en tiempo real funcione.
+  if (url.origin !== location.origin) return;
+
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached;

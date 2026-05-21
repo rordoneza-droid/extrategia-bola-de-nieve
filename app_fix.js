@@ -1224,9 +1224,3 @@ function editarDeuda(id) {
   abrirModalDeuda(id);
 }
 function eliminarDeuda(id) {
-  if (!confirm('¿Eliminar esta deuda? (Solo hazlo si fue pagada o cargada por error)')) return;
-  state.deudas = state.deudas.filter((d) => d.id !== id);
-  guardar();
-  render();
-  toast('Deuda eliminada');
-}
